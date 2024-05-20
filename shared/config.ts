@@ -1,7 +1,7 @@
 import { YacaStereoMode } from "./enums.js";
 
 export const Config = {
-    YACA_UNIQUE_SERVER_ID: '',
+    YACA_UNIQUE_SERVER_ID: '2342340N5QgVGsJfHpBC5bdtOUn+OJ7a4=',
     YACA_CHANNEL_ID: '2', //InGame Voice Channel
     YACA_CHANNEL_PASSWORD: '1234',
     YACA_DEFAULT_CHANNEL_ID: '1', // Entry Hall channel
@@ -38,19 +38,4 @@ export const Config = {
             dict: "facials@gen_male@variations@normal"
         }
     },
-
-    //TODO MOVE TO TRANSLATIONS
-    translations: {
-        "plugin_not_activated": "Please activate your voiceplugin!",
-        "connect_error": "Error while connecting to voiceserver, please reconnect!",
-        "plugin_not_initializiaed": "Plugin not initialized!",
-    
-        // Error message which comes from the plugin
-        "OUTDATED_VERSION": "You dont use the required plugin version!",
-        "WRONG_TS_SERVER": "You are on the wrong teamspeakserver!",
-        "NOT_CONNECTED": "You are on the wrong teamspeakserver!",
-        "MOVE_ERROR": "Error while moving into ingame teamspeak channel!",
-        "WAIT_GAME_INIT": "",
-        "HEARTBEAT": ""
-    }
 }

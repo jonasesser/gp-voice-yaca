@@ -1,41 +1,11 @@
 import * as alt from 'alt-server';
+import * as AthenaServer from '@AthenaServer/api/index.js';
 import { Config } from '@AthenaPlugins/gp-voice-yaca/shared/config.js';
-import { FrequenceValueMap, RadioInfoValue, RadioInfos } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
+import { FrequenceValueMap, PlayerRadioSettings, PlayerVoicePlugin, PlayerVoiceSettings, RadioInfoValue, RadioInfos } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
 import { YACA_META } from '@AthenaPlugins/gp-voice-yaca/shared/meta.js';
 import { YACA_EVENTS } from '@AthenaPlugins/gp-voice-yaca/shared/events.js';
 import { ALT_V_EVENTS } from '@AthenaShared/enums/altvEvents.js';
-
-declare module "alt-server" {
-    export interface Colshape {
-        voiceRangeInfos: {
-            maxRange: number,
-        }
-    }
-
-    export interface Player {
-        voiceSettings: {
-            voiceRange: number,
-            voiceFirstConnect: boolean,
-            maxVoiceRangeInMeter: number,
-            forceMuted: boolean,
-            ingameName: string,
-        };
-
-        voiceplugin: {
-            clientId: number,
-            forceMuted: boolean,
-            range: number,
-            playerId: number
-        }
-
-        radioSettings: {
-            activated: boolean,
-            currentChannel: number,
-            hasLong: boolean,
-            frequencies: { [key: number]: string }
-        };
-    }
-}
+import { LOCALES_KEYS } from '@AthenaPlugins/gp-voice-yaca/shared/locale/locales_keys.js';
 
 const settings = {
     // Max Radio Channels
@@ -126,7 +96,7 @@ export class YaCAServerModule {
             }
         }
 
-        if (!name && player.valid) player.sendMessage("Fehler bei der Teamspeaknamens findung, bitte reconnecte!");
+        if (!name && player.valid) AthenaServer.player.emit.notification(player,AthenaServer.locale.get(player,LOCALES_KEYS.TS_NAME_NOT_FOUND));
 
         return name;
     }
@@ -488,8 +458,8 @@ export class YaCAServerModule {
      */
     changeRadioFrequency(player: alt.Player, channel: number, frequency: string) {
         if (!player?.valid) return;
-        if (!player.radioSettings.activated) return player.sendMessage("Das Funkgerät ist aus!");
-        if (isNaN(channel) || channel < 1 || channel > settings.maxRadioChannels) return player.sendMessage("Fehlerhafter Funk Kanal!");
+        if (!player.radioSettings.activated) return AthenaServer.player.emit.notification(player, AthenaServer.locale.get(player, LOCALES_KEYS.RADIO_IS_OFF));
+        if (isNaN(channel) || channel < 1 || channel > settings.maxRadioChannels) return AthenaServer.player.emit.notification(player, AthenaServer.locale.get(player, LOCALES_KEYS.RADIO_CHANNEL_ERROR));
 
         // Leave radiochannel if frequency is 0
         if (frequency == "0") return YaCAServerModule.getInstance().leaveRadioFrequency(player, channel, frequency);
@@ -559,7 +529,7 @@ export class YaCAServerModule {
         // }
 
         if (!settings.USE_WHISPER && players.length) alt.emitClientRaw(players, YACA_EVENTS.CLIENT_LEAVE_RADIO_CHANNEL, player.voiceplugin.clientId, frequency);
-        if (settings.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING, allTargets, frequency, false, null, true);
+        if (settings.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, allTargets, false);
 
         allPlayersInChannel.delete(player.id);
         if (!YaCAServerModule.radioFrequencyMap.get(frequency).size) YaCAServerModule.radioFrequencyMap.delete(frequency)
@@ -670,7 +640,7 @@ export class YaCAServerModule {
         // }
 
         if (targets.length) alt.emitClientRaw(targets, YACA_EVENTS.CLIENT_RADIO_TALKING, player.id, radioFrequency, state, radioInfos);
-        if (settings.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING, targetsToSender, radioFrequency, state, radioInfos, true)
+        if (settings.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, targetsToSender, state);
     };
 
     /* ======================== PHONE SYSTEM ======================== */

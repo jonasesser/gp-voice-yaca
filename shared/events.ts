@@ -6,6 +6,7 @@ export enum YACA_EVENTS {
     CLIENT_PHONE_OLD = 'client:yaca:phoneOld',
     CLIENT_PHONE = 'client:yaca:phone',
     CLIENT_RADIO_TALKING = 'client:yaca:radioTalking',
+    CLIENT_RADIO_TALKING_WHISPER = 'client:yaca:radioTalkingWhisper',
     CLIENT_RADIO_MUTE_STATE = 'client:yaca:setRadioMuteState',
     CLIENT_LEAVE_RADIO_CHANNEL = 'client:yaca:leaveRadioChannel',
     CLIENT_SET_RADIO_FREQUENCY = 'client:yaca:setRadioFrequency',
@@ -14,11 +15,17 @@ export enum YACA_EVENTS {
     CLIENT_MUTE_TARGET = 'client:yaca:muteTarget',
     CLIENT_PLAYERS_TO_PHONE_SPEAKER_EMIT = 'client:yaca:playersToPhoneSpeakerEmit',
     
-    
+    //Not implement server side, yet.
+    CLIENT_ADD_REMOVE_PLAYER_INTERCOM_FILTER = 'client:yaca:addRemovePlayerIntercomFilter',
+
+
     //WEBVIEW to Client
     WV_CLIENT_CHANGE_ACTIVE_RADIO_CHANNEL = 'client:yaca:changeActiveRadioChannel',
     WV_CLIENT_CHANGE_RADIO_FREQUENCY = 'client:yaca:changeRadioFrequency',
     WV_CLIENT_MUTE_RADIO_CHANNEL = 'client:yaca:muteRadioChannel',
+    WV_CLIENT_CHANGE_RADIO_CHANNEL_VOLUME = 'client:yaca:changeRadioChannelVolume',
+    WV_CLIENT_CHANGE_RADIO_CHANNEL_STEREO = 'client:yaca:changeRadioChannelStereo',
+    WV_CLIENT_CHANGE_RADIO_SPEAKER = 'client:yaca:changeRadioSpeaker',
 
     //Client to SERVER
     SERVER_CONNECT = 'server:yaca:connect',
@@ -41,4 +48,9 @@ export enum YACA_EVENTS {
     SERVER_CHANGE_RADIO_FREQUENCY = 'server:yaca:changeRadioFrequency',
     SERVER_MUTE_RADIO_CHANNEL = 'server:yaca:muteRadioChannel',
     SERVER_CHANGE_ACTIVE_RADIO_CHANNEL = 'server:yaca:changeActiveRadioChannel',
+
+    //Client to WEBVIEW
+    WEBVIEW_VOICE_DISTANCE = 'webview:hud:voiceDistance',
+    WEBVIEW_IS_TALKING = 'webview:hud:isTalking',
+    WEBVIEW_OPEN_STATE = 'webview:yaca:openState',
 }
