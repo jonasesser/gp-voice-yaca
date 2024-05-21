@@ -246,7 +246,7 @@ export class YaCAClientModule {
         });
 
         /* =========== RADIO SYSTEM =========== */
-        this.webview.on(YACA_EVENTS.SERVER_ENABLE_RADIO, (state) => {
+        this.webview.on(YACA_EVENTS.WV_CLIENT_ENABLE_RADIO, (state) => {
             if (!this.isPluginInitialized()) return;
 
             if (this.radioEnabled != state) {
@@ -1267,7 +1267,7 @@ export class YaCAClientModule {
     updateRadioInWebview(channel) {
         if (channel != this.activeRadioChannel) return;
 
-        this.webview.emit("webview:yaca:setChannelData", this.radioChannelSettings[channel]);
+        this.webview.emit(YACA_EVENTS.WEBVIEW_SET_CHANNEL_DATA, this.radioChannelSettings[channel]);
     }
 
     /**

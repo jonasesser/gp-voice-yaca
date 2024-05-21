@@ -26,6 +26,8 @@ export enum YACA_EVENTS {
     WV_CLIENT_CHANGE_RADIO_CHANNEL_VOLUME = 'client:yaca:changeRadioChannelVolume',
     WV_CLIENT_CHANGE_RADIO_CHANNEL_STEREO = 'client:yaca:changeRadioChannelStereo',
     WV_CLIENT_CHANGE_RADIO_SPEAKER = 'client:yaca:changeRadioSpeaker',
+    WV_CLIENT_ENABLE_RADIO = 'client:yaca:enableRadio',
+    WV_CLIENT_HARD_BLOCK_ALL_KEYS = 'client:keyhandler:hardBlockAllKeys', //TODO: triggred but no receiver!
 
     //Client to SERVER
     SERVER_CONNECT = 'server:yaca:connect',
@@ -50,7 +52,10 @@ export enum YACA_EVENTS {
     SERVER_CHANGE_ACTIVE_RADIO_CHANNEL = 'server:yaca:changeActiveRadioChannel',
 
     //Client to WEBVIEW
+    WEBVIEW_RADIO_READY = 'webview:yaca:radioReady',
+    WEBVIEW_RADIO_VIEW_NAME = 'Radio',
     WEBVIEW_VOICE_DISTANCE = 'webview:hud:voiceDistance',
     WEBVIEW_IS_TALKING = 'webview:hud:isTalking',
     WEBVIEW_OPEN_STATE = 'webview:yaca:openState',
+    WEBVIEW_SET_CHANNEL_DATA = 'webview:yaca:setChannelData',
 }
