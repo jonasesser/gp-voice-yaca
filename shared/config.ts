@@ -1,7 +1,7 @@
 import { YacaStereoMode } from "./enums.js";
 
 export const Config = {
-    YACA_UNIQUE_SERVER_ID: '2342340N5QgVGsJfHpBC5bdtOUn+OJ7a4=',
+    YACA_UNIQUE_SERVER_ID: '',
     YACA_CHANNEL_ID: '2', //InGame Voice Channel
     YACA_CHANNEL_PASSWORD: '1234',
     YACA_DEFAULT_CHANNEL_ID: '1', // Entry Hall channel
