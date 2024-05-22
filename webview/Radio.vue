@@ -1,58 +1,60 @@
 <template>
     <v-app>
-        <div class="radioDiv">
-            <div class="content">
-                <img
-                        alt=" "
-                        :src="ResolvePath(`@plugins/images/gp-voice-yaca/radio.png`)"
-                        class="radio_responsive"
-                        :width="xlAndDown ? 150 : 200"
-                />
-                <!-- <v-img :src="values.radiobackground" :width="xlAndDown ? 150 : 200"></v-img> -->
-                <div class="btnOverContent">
-                    <v-row no-gutters>
-                        <v-col cols="6" class="clickCols" :style="[xlAndDown ? 'height: 50px' : 'height: 65px']"
-                            @click="btnExecute('volumeUp')" @contextmenu.prevent="btnExecuteRightClick('volumeDown')">
-                        </v-col>
-                        <v-col cols="6"
-                            :style="[xlAndDown ? 'height: 50px' : 'height: 35px', 'align-self: end', 'display: flex', 'flex-wrap: wrap']"
-                            class="clickCols" @click="btnExecute('onOff')">
-                        </v-col>
-                    </v-row>
-                </div>
-                <div class="btnContent">
-                    <v-row no-gutters v-for="(button, index) in btn" :key="index">
-                        <v-col cols="4" :style="[xlAndDown ? 'height: 25px' : 'height: 30px']" v-for="item in button"
-                            :key="item.key" @click="btnExecute(item.key)" class="clickCols"></v-col>
-                    </v-row>
-                </div>
-                <div class="activeRadio" v-if="isRadioActive" :style="['background-color: ' + color + '']">
-                    <div class="volumeContent">
-                        <v-row no-gutters v-for="item in volume" :key="item">
-                            <v-col cols="12" class="radioVolume"></v-col>
+        <div class="w-full h-full bg-transparent">
+            <div class="radioDiv">
+                <div class="content">
+                    <img
+                            alt=" "
+                            :src="ResolvePath(`@plugins/images/gp-voice-yaca/radio.png`)"
+                            class="radio_responsive"
+                            :width="xlAndDown ? 150 : 200"
+                    />
+                    <!-- <v-img :src="values.radiobackground" :width="xlAndDown ? 150 : 200"></v-img> -->
+                    <div class="btnOverContent">
+                        <v-row no-gutters>
+                            <v-col cols="6" class="clickCols" :style="[xlAndDown ? 'height: 50px' : 'height: 65px']"
+                                @click="btnExecute('volumeUp')" @contextmenu.prevent="btnExecuteRightClick('volumeDown')">
+                            </v-col>
+                            <v-col cols="6"
+                                :style="[xlAndDown ? 'height: 50px' : 'height: 35px', 'align-self: end', 'display: flex', 'flex-wrap: wrap']"
+                                class="clickCols" @click="btnExecute('onOff')">
+                            </v-col>
                         </v-row>
                     </div>
-                    <v-row no-gutters align="center" justify="center">
-                        <v-col cols="12">
-                            <div class="modeContent">
-                                {{ "C" + channel }}
-                            </div>
-                        </v-col>
-                        <v-col cols="12" style="padding: 0 1rem">
-                            <v-divider class="border-opacity-50"></v-divider>
-                        </v-col>
-                        <v-col cols="12">
-                            <div class="frequenzContent">
-                                <input v-model="frequency" class="inputFrequenz" type="text"
-                                    @input="event => frequenzRule(event.target['value'])"
-                                    @focusin="handleInputFocus(true)"
-                                    @focusout="handleInputFocus(false)"
-                                />
-                            </div>
-                        </v-col>
-                    </v-row>
+                    <div class="btnContent">
+                        <v-row no-gutters v-for="(button, index) in btn" :key="index">
+                            <v-col cols="4" :style="[xlAndDown ? 'height: 25px' : 'height: 30px']" v-for="item in button"
+                                :key="item.key" @click="btnExecute(item.key)" class="clickCols"></v-col>
+                        </v-row>
+                    </div>
+                    <div class="activeRadio" v-if="isRadioActive" :style="['background-color: ' + color + '']">
+                        <div class="volumeContent">
+                            <v-row no-gutters v-for="item in volume" :key="item">
+                                <v-col cols="12" class="radioVolume"></v-col>
+                            </v-row>
+                        </div>
+                        <v-row no-gutters align="center" justify="center">
+                            <v-col cols="12">
+                                <div class="modeContent">
+                                    {{ "C" + channel }}
+                                </div>
+                            </v-col>
+                            <v-col cols="12" style="padding: 0 1rem">
+                                <v-divider class="border-opacity-50"></v-divider>
+                            </v-col>
+                            <v-col cols="12">
+                                <div class="frequenzContent">
+                                    <input v-model="frequency" class="inputFrequenz" type="text"
+                                        @input="event => frequenzRule(event.target['value'])"
+                                        @focusin="handleInputFocus(true)"
+                                        @focusout="handleInputFocus(false)"
+                                    />
+                                </div>
+                            </v-col>
+                        </v-row>
+                    </div>
+                    <div v-else class="deactiveRadio"></div>
                 </div>
-                <div v-else class="deactiveRadio"></div>
             </div>
         </div>
     </v-app>
@@ -200,6 +202,19 @@ export default defineComponent({
 </script>
 
 <style scoped>
+body,
+.v-application {
+    background-color: transparent !important;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+html {
+    overflow: hidden;
+}
+
 .radioDiv {
     position: fixed;
     top: 5rem;

@@ -1,8 +1,8 @@
 import { YacaStereoMode } from "./enums.js";
 
 export const Config = {
-    DISCONNECT_TIMEOUT: 120, //Discronnect timeout in seconds if voice plugin not activated, 0 for no timeout.
-    YACA_UNIQUE_SERVER_ID: '2342340N5QgVGsJfHpBC5bdtOUn+OJ7a4=',
+    DISCONNECT_TIMEOUT: 0, //Discronnect timeout in seconds if voice plugin not activated, 0 for no timeout.
+    YACA_UNIQUE_SERVER_ID: '',
     YACA_CHANNEL_ID: '2', //InGame Voice Channel
     YACA_CHANNEL_PASSWORD: '1234',
     YACA_DEFAULT_CHANNEL_ID: '1', // Entry Hall channel

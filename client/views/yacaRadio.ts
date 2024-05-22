@@ -54,7 +54,7 @@ export class YacaRadio implements ViewModel {
         AthenaClient.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_RADIO_CHANNEL_STEREO, YacaRadio.changeRadioChannelStereo);
         AthenaClient.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_RADIO_SPEAKER, YacaRadio.changeRadioSpeaker);
 
-        AthenaClient.webview.openStaticPage(YACA_EVENTS.WEBVIEW_RADIO_VIEW_NAME, false);
+        AthenaClient.webview.openStaticPage(YACA_EVENTS.WEBVIEW_RADIO_VIEW_NAME, false, YacaRadio.closeRadio);
 
         MenuHelper.openMenu();
     }
@@ -85,6 +85,7 @@ export class YacaRadio implements ViewModel {
         alt.toggleGameControls(true);
         AthenaClient.webview.emit(YACA_EVENTS.WEBVIEW_OPEN_STATE, false);
         AthenaClient.webview.unfocus();
+        AthenaClient.webview.closeStaticPage(YACA_EVENTS.WEBVIEW_RADIO_VIEW_NAME);
 
         MenuHelper.closeMenu();
     }
@@ -94,7 +95,7 @@ export class YacaRadio implements ViewModel {
      */
     static initRadioSettings() {
         if (!radioInited) return;
-        
+
         for (let i = 1; i <= Config.YACA_MAX_RADIO_CHANNELS; i++) {
             if (!radioChannelSettings[i]) radioChannelSettings[i] = Object.assign({}, Config.defaultRadioChannelSettings);
             if (!playersInRadioChannel.has(i)) playersInRadioChannel.set(i, new Set());

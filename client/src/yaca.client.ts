@@ -304,7 +304,7 @@ export class YaCAClientModule {
                     this.changeVoiceRange(-1);
                     break;
                 case KEY_BINDS.YACA_OPEN_RADIO:
-                    YacaRadio.openRadio();
+                    YacaRadio.openRadioToggle();
                     break;
             }
         });
