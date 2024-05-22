@@ -12,8 +12,8 @@ export const LOCALES_DE = {
     WRONG_TS_SERVER: "Du bist auf dem falschen Teamspeakserver!",
     NOT_CONNECTED: "Du bist nicht mit dem korrekten Teamspeakserver verbunden!",
     MOVE_ERROR: "Fehler beim Bewegen in den Ingame Teamspeak Channel!",
-    WAIT_GAME_INIT: "",
-    HEARTBEAT: "",
+    WAIT_GAME_INIT: "Warte auf die Spielinitialisierung!",
+    HEARTBEAT: "Yaca heartbeat!",
 
     NOT_ACTIVE_KICK_MESSAGE: "Dein Voiceplugin war nicht aktiviert!",
 };

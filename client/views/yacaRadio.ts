@@ -11,8 +11,6 @@ import { RadioInfos } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
 import { CommDeviceMode, YacaFilter, YacaStereoMode } from '@AthenaPlugins/gp-voice-yaca/shared/enums.js';
 import { MenuHelper } from '@AthenaPlugins/gp-athena-utils/client/src/utility/menuHelper.js';
 
-let clientModule: YaCAClientModule;
-
 let radioFrequenceSetted = false;
 let radioToggle = false;
 let radioEnabled = false;
@@ -23,9 +21,8 @@ let activeRadioChannel = 1;
 let playersInRadioChannel = new Map();
 
 export class YacaRadio implements ViewModel {
-    static init(clientModule: YaCAClientModule) {
-        clientModule = clientModule;
 
+    static init() {       
         alt.onServer(YACA_EVENTS.CLIENT_SET_RADIO_FREQUENCY, YacaRadio.setRadioFrequency);
         alt.onServer(YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, YacaRadio.radioTalkingWhisper);
         alt.onServer(YACA_EVENTS.CLIENT_RADIO_TALKING, YacaRadio.radioTalking);
@@ -96,15 +93,15 @@ export class YacaRadio implements ViewModel {
     static initRadioSettings() {
         if (!radioInited) return;
 
-        for (let i = 1; i <= Config.YACA_MAX_RADIO_CHANNELS; i++) {
+        for (let i = 1; i <= Config.MAX_RADIO_CHANNELS; i++) {
             if (!radioChannelSettings[i]) radioChannelSettings[i] = Object.assign({}, Config.defaultRadioChannelSettings);
             if (!playersInRadioChannel.has(i)) playersInRadioChannel.set(i, new Set());
 
             const volume = radioChannelSettings[i].volume;
             const stereo = radioChannelSettings[i].stereo;
 
-            clientModule.setCommDeviceStereomode(YacaFilter.RADIO, stereo, i);
-            clientModule.setCommDeviceVolume(YacaFilter.RADIO, volume, i);
+            Yaca.clientModule.setCommDeviceStereomode(YacaFilter.RADIO, stereo, i);
+            Yaca.clientModule.setCommDeviceVolume(YacaFilter.RADIO, volume, i);
         }
     }
 
@@ -114,20 +111,21 @@ export class YacaRadio implements ViewModel {
      * @param {boolean} state - The state of the player talking on the radio.
      */
     static radioTalkingStateToPlugin(state: boolean) {
-        YaCAClientModule.setPlayersCommType(clientModule.getPlayerByID(clientModule.localPlayer.remoteID), YacaFilter.RADIO, state, activeRadioChannel);
+        YaCAClientModule.setPlayersCommType(Yaca.clientModule.getPlayerByID(Yaca.clientModule.localPlayer.remoteID), YacaFilter.RADIO, state, activeRadioChannel);
     }
 
     static handleSyncedMetas(entity: alt.Entity, key: string, value: any, oldValue?: any) {
-        const isOwnPlayer = entity.remoteID === clientModule.localPlayer.remoteID;
-        if (isOwnPlayer && !clientModule.isPlayerMuted) {
-            AthenaClient.webview.emit(YACA_EVENTS.WEBVIEW_IS_TALKING, value);
+        const isOwnPlayer = entity.remoteID === Yaca.clientModule.localPlayer.remoteID;
+        if (isOwnPlayer && !Yaca.clientModule.isPlayerMuted) {
+            //TODO: Implement Radio Talking
+            // AthenaClient.webview.emit(YACA_EVENTS.WEBVIEW_IS_TALKING, value);
         } 
     }
 
     static radioTalkingStateToPluginWithWhisper(state: boolean, targets: number[]) {
         let comDeviceTargets = [];
         for (const target of targets) {
-            const player = clientModule.getPlayerByID(target);
+            const player = Yaca.clientModule.getPlayerByID(target);
             if (!player) continue;
 
             comDeviceTargets.push(player);
@@ -189,7 +187,7 @@ export class YacaRadio implements ViewModel {
 
         let targets = [];
         for (const playerId of players) {
-            const player = clientModule.getPlayerByID(playerId);
+            const player = Yaca.clientModule.getPlayerByID(playerId);
             if (!player) continue;
 
             targets.push(player);
@@ -209,21 +207,21 @@ export class YacaRadio implements ViewModel {
         if (!state) {
             if (radioTalking) {
                 radioTalking = false;
-                if (!clientModule.useWhisper) YacaRadio.radioTalkingStateToPlugin(false);
+                if (!Yaca.clientModule.useWhisper) YacaRadio.radioTalkingStateToPlugin(false);
                 alt.emitServerRaw(YACA_EVENTS.SERVER_RADIO_TALKING, false);
-                if (clearPedTasks) natives.stopAnimTask(clientModule.localPlayer, "random@arrests", "generic_radio_chatter", 4);
+                if (clearPedTasks) natives.stopAnimTask(Yaca.clientModule.localPlayer, "random@arrests", "generic_radio_chatter", 4);
             }
 
             return;
         }
 
-        if (!radioEnabled || !radioFrequenceSetted || radioTalking || clientModule.localPlayer.isReloading) return;
+        if (!radioEnabled || !radioFrequenceSetted || radioTalking || Yaca.clientModule.localPlayer.isReloading) return;
 
         radioTalking = true;
-        if (!clientModule.useWhisper) YacaRadio.radioTalkingStateToPlugin(true);
+        if (!Yaca.clientModule.useWhisper) YacaRadio.radioTalkingStateToPlugin(true);
 
         alt.Utils.requestAnimDict("random@arrests").then(() => {
-            natives.taskPlayAnim(clientModule.localPlayer, "random@arrests", "generic_radio_chatter", 3, -4, -1, 49, 0.0, false, false, false);
+            natives.taskPlayAnim(Yaca.clientModule.localPlayer, "random@arrests", "generic_radio_chatter", 3, -4, -1, 49, 0.0, false, false, false);
 
             alt.emitServerRaw(YACA_EVENTS.SERVER_RADIO_TALKING, true);
         });
@@ -232,14 +230,14 @@ export class YacaRadio implements ViewModel {
     //Yaca Radio Functions
 
     static enableRadio(state: boolean) {
-        if (!clientModule.isPluginInitialized()) return;
+        if (!Yaca.clientModule.isPluginInitialized()) return;
 
         if (radioEnabled != state) {
             radioEnabled = state;
             alt.emitServerRaw(YACA_EVENTS.SERVER_ENABLE_RADIO, state);
 
             if (!state) {
-                for (let i = 1; i <= Config.YACA_MAX_RADIO_CHANNELS; i++) {
+                for (let i = 1; i <= Config.MAX_RADIO_CHANNELS; i++) {
                     YacaRadio.disableRadioFromPlayerInChannel(i);
                 }
             }
@@ -253,7 +251,7 @@ export class YacaRadio implements ViewModel {
     }
 
     static changeRadioFrequency(frequency: string) {
-        if (!clientModule.isPluginInitialized()) return;
+        if (!Yaca.clientModule.isPluginInitialized()) return;
 
         alt.emitServerRaw(YACA_EVENTS.SERVER_CHANGE_RADIO_FREQUENCY, activeRadioChannel, frequency);
     }
@@ -266,10 +264,10 @@ export class YacaRadio implements ViewModel {
         const channel = YacaRadio.findRadioChannelByFrequency(frequency);
         if (!channel) return;
         
-        const player = clientModule.getPlayerByID(target);
+        const player = Yaca.clientModule.getPlayerByID(target);
         if (!player) return;
 
-        const info = infos[clientModule.localPlayer.remoteID];
+        const info = infos[Yaca.clientModule.localPlayer.remoteID];
 
         if (!info?.shortRange || (info?.shortRange && alt.Player.getByRemoteID(target)?.isSpawned)) {
             YaCAClientModule.setPlayersCommType(player, YacaFilter.RADIO, state, channel, undefined, CommDeviceMode.RECEIVER, CommDeviceMode.SENDER);
@@ -279,15 +277,15 @@ export class YacaRadio implements ViewModel {
 
         if (info?.shortRange || !state) {
             if (state) {
-                clientModule.playersWithShortRange.set(target, frequency)
+                Yaca.clientModule.playersWithShortRange.set(target, frequency)
             } else {
-                clientModule.playersWithShortRange.delete(target)
+                Yaca.clientModule.playersWithShortRange.delete(target)
             }
         }
     }
 
     static muteRadioChannel(){
-        if (!clientModule.isPluginInitialized() || !radioEnabled) return;
+        if (!Yaca.clientModule.isPluginInitialized() || !radioEnabled) return;
 
         const channel = activeRadioChannel;
         if (radioChannelSettings[channel].frequency == 0) return;
@@ -305,9 +303,9 @@ export class YacaRadio implements ViewModel {
 
         const channel = YacaRadio.findRadioChannelByFrequency(frequency);
 
-        if (client_ids.includes(clientModule.getPlayerByID(clientModule.localPlayer.remoteID)?.clientId)) YacaRadio.setRadioFrequency(channel, "0");
+        if (client_ids.includes(Yaca.clientModule.getPlayerByID(Yaca.clientModule.localPlayer.remoteID)?.clientId)) YacaRadio.setRadioFrequency(channel, "0");
 
-        clientModule.sendWebsocket({
+        Yaca.clientModule.sendWebsocket({
             base: {"request_type": "INGAME"},
             comm_device_left: {
                 comm_type: YacaFilter.RADIO,
@@ -318,7 +316,7 @@ export class YacaRadio implements ViewModel {
     }
 
     static changeActiveRadioChannel(channel: number) {
-        if (!clientModule.isPluginInitialized() || !radioEnabled) return;
+        if (!Yaca.clientModule.isPluginInitialized() || !radioEnabled) return;
 
         alt.emitServerRaw(YACA_EVENTS.SERVER_CHANGE_ACTIVE_RADIO_CHANNEL, channel);
         activeRadioChannel = channel;
@@ -326,11 +324,11 @@ export class YacaRadio implements ViewModel {
     }
 
     static changeRadioChannelVolume(higher: boolean) {
-        if (!clientModule.isPluginInitialized() || !radioEnabled || radioChannelSettings[activeRadioChannel].frequency == 0) return;
+        if (!Yaca.clientModule.isPluginInitialized() || !radioEnabled || radioChannelSettings[activeRadioChannel].frequency == 0) return;
 
         const channel = activeRadioChannel;
         const oldVolume = radioChannelSettings[channel].volume;
-        radioChannelSettings[channel].volume = clientModule.clamp(
+        radioChannelSettings[channel].volume = Yaca.clientModule.clamp(
             oldVolume + (higher ? 0.17 : -0.17),
             0,
             1
@@ -347,11 +345,11 @@ export class YacaRadio implements ViewModel {
         if (radioChannelSettings[channel].volume > 0) YacaRadio.updateRadioInWebview(channel);
 
         // Send update to voiceplugin
-        clientModule.setCommDeviceVolume(YacaFilter.RADIO, radioChannelSettings[channel].volume, channel);
+        Yaca.clientModule.setCommDeviceVolume(YacaFilter.RADIO, radioChannelSettings[channel].volume, channel);
     }
 
     static changeRadioChannelStereo() {
-        if (!clientModule.isPluginInitialized() || !radioEnabled) return;
+        if (!Yaca.clientModule.isPluginInitialized() || !radioEnabled) return;
 
         const channel = activeRadioChannel;
 
@@ -359,19 +357,19 @@ export class YacaRadio implements ViewModel {
         switch (radioChannelSettings[channel].stereo) {
             case YacaStereoMode.STEREO:
                 radioChannelSettings[channel].stereo = YacaStereoMode.MONO_LEFT;
-                clientModule.radarNotification(`Kanal ${channel} ist nun auf der linken Seite hörbar.`);
+                Yaca.clientModule.radarNotification(`Kanal ${channel} ist nun auf der linken Seite hörbar.`);
                 break;
             case YacaStereoMode.MONO_LEFT:
                 radioChannelSettings[channel].stereo = YacaStereoMode.MONO_RIGHT;
-                clientModule.radarNotification(`Kanal ${channel} ist nun auf der rechten Seite hörbar.`);
+                Yaca.clientModule.radarNotification(`Kanal ${channel} ist nun auf der rechten Seite hörbar.`);
                 break;
             case YacaStereoMode.MONO_RIGHT:
                 radioChannelSettings[channel].stereo = YacaStereoMode.STEREO;
-                clientModule.radarNotification(`Kanal ${channel} ist nun auf beiden Seiten hörbar.`);
+                Yaca.clientModule.radarNotification(`Kanal ${channel} ist nun auf beiden Seiten hörbar.`);
         };
 
         // Send update to voiceplugin
-        clientModule.setCommDeviceStereomode(YacaFilter.RADIO, radioChannelSettings[channel].stereo, channel);
+        Yaca.clientModule.setCommDeviceStereomode(YacaFilter.RADIO, radioChannelSettings[channel].stereo, channel);
     }
    
     static changeRadioSpeaker() {

@@ -7,26 +7,6 @@ import { YACA_EVENTS } from '@AthenaPlugins/gp-voice-yaca/shared/events.js';
 import { ALT_V_EVENTS } from '@AthenaShared/enums/altvEvents.js';
 import { LOCALES_KEYS } from '@AthenaPlugins/gp-voice-yaca/shared/locale/locales_keys.js';
 
-const settings = {
-    // Max Radio Channels
-    maxRadioChannels: Config.YACA_MAX_RADIO_CHANNELS || 9, // needs to be sync with client setting
-
-    // Unique Teamspeakserver ID
-    UNIQUE_SERVER_ID: Config.YACA_UNIQUE_SERVER_ID || "",
-
-    // Ingame Voice Channel ID
-    CHANNEL_ID: Config.YACA_CHANNEL_ID || 0,
-
-    // Ingame Voice Channel Password
-    CHANNEL_PASSWORD: Config.YACA_CHANNEL_PASSWORD || "",
-
-    // Default Teamspeak Channel, if player can't be moved back to his old channel
-    DEFAULT_CHANNEL_ID: Config.YACA_DEFAULT_CHANNEL_ID || 1,
-
-    // If true, it will use the teamspeak whisper system
-    USE_WHISPER: Config.YACA_USE_WHISPER || false,
-}
-
 /**
  * Generates a random string of a given length.
  *
@@ -50,7 +30,7 @@ export class YaCAServerModule {
     static radioFrequencyMap: Map<string, Map<number, FrequenceValueMap>> = new Map();
 
     constructor() {
-        if (!settings.UNIQUE_SERVER_ID || settings.UNIQUE_SERVER_ID == "") {
+        if (!Config.UNIQUE_SERVER_ID || Config.UNIQUE_SERVER_ID == "") {
             throw Error('~r~ --> YaCA: Unique Server ID is not set! Please set it in your .env file');
         }
         alt.log('~g~ --> YaCA: Server loaded');
@@ -134,7 +114,8 @@ export class YaCAServerModule {
 
     registerEvents() {
         // alt:V Events
-        alt.on(ALT_V_EVENTS.playerConnect, this.connectToVoice.bind(this));
+        AthenaServer.player.events.on('selected-character', this.connectToVoice.bind(this));
+        
         alt.on(ALT_V_EVENTS.playerDisconnect, this.handlePlayerDisconnect.bind(this));
         alt.on(ALT_V_EVENTS.playerLeftVehicle, this.handlePlayerLeftVehicle.bind(this));
         alt.on(ALT_V_EVENTS.entityEnterColshape, this.handleEntityEnterColshape.bind(this));
@@ -367,14 +348,18 @@ export class YaCAServerModule {
     connect(player: alt.Player) {
         player.voiceSettings.voiceFirstConnect = true;
 
-        player.emitRaw(YACA_EVENTS.CLIENT_INIT, {
-            suid: settings.UNIQUE_SERVER_ID,
-            chid: settings.CHANNEL_ID,
-            deChid: settings.DEFAULT_CHANNEL_ID,
-            channelPassword: settings.CHANNEL_PASSWORD,
+        const playerSettings = {
+            suid: Config.UNIQUE_SERVER_ID,
+            chid: Config.CHANNEL_ID,
+            deChid: Config.DEFAULT_CHANNEL_ID,
+            channelPassword: Config.CHANNEL_PASSWORD,
             ingameName: player.voiceSettings.ingameName,
-            useWhisper: settings.USE_WHISPER
-        } as iPlayerSettings);
+            useWhisper: Config.USE_WHISPER
+        } as iPlayerSettings;
+
+        alt.logWarning("Yaca Connect with params: " + JSON.stringify(playerSettings));
+
+        player.emitRaw(YACA_EVENTS.CLIENT_INIT,playerSettings);
     }
 
     /**
@@ -442,7 +427,7 @@ export class YaCAServerModule {
     changeRadioFrequency(player: alt.Player, channel: number, frequency: string) {
         if (!player?.valid) return;
         if (!player.radioSettings.activated) return AthenaServer.player.emit.notification(player, AthenaServer.locale.get(player, LOCALES_KEYS.RADIO_IS_OFF));
-        if (isNaN(channel) || channel < 1 || channel > settings.maxRadioChannels) return AthenaServer.player.emit.notification(player, AthenaServer.locale.get(player, LOCALES_KEYS.RADIO_CHANNEL_ERROR));
+        if (isNaN(channel) || channel < 1 || channel > Config.MAX_RADIO_CHANNELS) return AthenaServer.player.emit.notification(player, AthenaServer.locale.get(player, LOCALES_KEYS.RADIO_CHANNEL_ERROR));
 
         // Leave radiochannel if frequency is 0
         if (frequency == "0") return YaCAServerModule.getInstance().leaveRadioFrequency(player, channel, frequency);
@@ -511,8 +496,8 @@ export class YaCAServerModule {
         //     allTargets.push(target.id);
         // }
 
-        if (!settings.USE_WHISPER && players.length) alt.emitClientRaw(players, YACA_EVENTS.CLIENT_LEAVE_RADIO_CHANNEL, player.voiceplugin.clientId, frequency);
-        if (settings.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, allTargets, false);
+        if (!Config.USE_WHISPER && players.length) alt.emitClientRaw(players, YACA_EVENTS.CLIENT_LEAVE_RADIO_CHANNEL, player.voiceplugin.clientId, frequency);
+        if (Config.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, allTargets, false);
 
         allPlayersInChannel.delete(player.id);
         if (!YaCAServerModule.radioFrequencyMap.get(frequency).size) YaCAServerModule.radioFrequencyMap.delete(frequency)
@@ -542,7 +527,7 @@ export class YaCAServerModule {
      * @param {number} channel - The new active channel.
      */
     radioActiveChannelChange(player: alt.Player, channel: number) {
-        if (!player?.valid || isNaN(channel) || channel < 1 || channel > settings.maxRadioChannels) return;
+        if (!player?.valid || isNaN(channel) || channel < 1 || channel > Config.MAX_RADIO_CHANNELS) return;
 
         player.radioSettings.currentChannel = channel;
     }
@@ -623,7 +608,7 @@ export class YaCAServerModule {
         // }
 
         if (targets.length) alt.emitClientRaw(targets, YACA_EVENTS.CLIENT_RADIO_TALKING, player.id, radioFrequency, state, radioInfos);
-        if (settings.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, targetsToSender, state);
+        if (Config.USE_WHISPER) alt.emitClientRaw(player, YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, targetsToSender, state);
     };
 
     /* ======================== PHONE SYSTEM ======================== */

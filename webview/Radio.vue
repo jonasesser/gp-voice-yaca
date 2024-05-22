@@ -123,6 +123,7 @@ export default defineComponent({
                 this.init = true;
                 WebViewEvents.on(YACA_EVENTS.WEBVIEW_OPEN_STATE, this.openState);
                 WebViewEvents.on(YACA_EVENTS.WEBVIEW_SET_CHANNEL_DATA, this.setChannelData);
+                WebViewEvents.on(YACA_EVENTS.WEBVIEW_IS_TALKING, this.isTalking);
                 WebViewEvents.emitClient(YACA_EVENTS.WEBVIEW_RADIO_READY, this.ComponentName);
             }
         }
@@ -132,6 +133,9 @@ export default defineComponent({
     },
     methods: {
         ResolvePath,
+        isTalking(value: boolean) {
+            // this.isRadioActive = value;
+        },
         frequenzRule(value: string) {
             if ((this.frequencyRegex).test(value)) {
                 this.color = '#7c9d7d';

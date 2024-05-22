@@ -1,7 +1,7 @@
 export interface iPlayerSettings {
     suid: string;
-    chid: string;
-    deChid: string;
+    chid: number;
+    deChid: number;
     channelPassword: string;
     ingameName: string;
     useWhisper: boolean;

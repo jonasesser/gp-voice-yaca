@@ -1,15 +1,15 @@
 import { YacaStereoMode } from "./enums.js";
 
 export const Config = {
-    DISCONNECT_TIMEOUT: 0, //Discronnect timeout in seconds if voice plugin not activated, 0 for no timeout.
-    YACA_UNIQUE_SERVER_ID: '',
-    YACA_CHANNEL_ID: '2', //InGame Voice Channel
-    YACA_CHANNEL_PASSWORD: '1234',
-    YACA_DEFAULT_CHANNEL_ID: '1', // Entry Hall channel
-    YACA_USE_WHISPER: false,
-    YACA_MAX_RADIO_CHANNELS: 99,
-    YACA_MAX_VOICE_RANGE: 50,
-    YACA_MAX_PHONE_SPEAKER_RANGE: 5,
+    DISCONNECT_TIMEOUT: 120, //Disconnect timeout in seconds if voice plugin not activated, 0 for no timeout.
+    UNIQUE_SERVER_ID: '0N5QgVGsJfHpBC5bdtOUn+OJ7a4=',
+    CHANNEL_ID: 5, //InGame Voice Channel
+    CHANNEL_PASSWORD: "jWujNA/W0't*iTRGP/CY",
+    DEFAULT_CHANNEL_ID: 1, // Entry Hall channel
+    USE_WHISPER: false,
+    MAX_RADIO_CHANNELS: 99,
+    MAX_VOICE_RANGE: 50,
+    MAX_PHONE_SPEAKER_RANGE: 5,
 
     defaultRadioChannelSettings: {
         volume: 1,
