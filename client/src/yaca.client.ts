@@ -2,13 +2,14 @@ import { Config } from '@AthenaPlugins/gp-voice-yaca/shared/config.js';
 import * as AthenaClient from '@AthenaClient/api/index.js';
 import { CommDeviceMode, PlayerVariables, YacaBuildType, YacaFilter, YacaStereoMode } from '@AthenaPlugins/gp-voice-yaca/shared/enums.js';
 import { YACA_EVENTS } from '@AthenaPlugins/gp-voice-yaca/shared/events.js';
-import { PlayerVoicePlugin, RadioInfos } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
+import { PlayerVoicePlugin, RadioInfos, iPlayerSettings } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
 import { YACA_META } from '@AthenaPlugins/gp-voice-yaca/shared/meta.js';
 import { ALT_V_EVENTS } from '@AthenaShared/enums/altvEvents.js';
 import { KEY_BINDS } from '@AthenaShared/enums/keyBinds.js';
 import { LOCALES_KEYS } from '@AthenaPlugins/gp-voice-yaca/shared/locale/locales_keys.js';
 import * as alt from 'alt-client';
 import * as natives from 'natives';
+import { YacaRadio } from '../views/yacaRadio.js';
 
 /**
  * @typedef {Object} YacaResponse
@@ -35,27 +36,15 @@ export class YaCAClientModule {
     firstConnect = true;
     isPlayerMuted = false;
 
-    //TODO: was missing before!
+    playersWithShortRange = new Map();
+
     inCall = false;
     currentlySendingPhoneSpeakerSender = null;
-
-    radioFrequenceSetted = false;
-    radioToggle = false;
-    radioEnabled = false;
-    radioTalking = false;
-    radioChannelSettings = {};
-    radioInited = false;
-    activeRadioChannel = 1;
-    playersWithShortRange = new Map();
-    playersInRadioChannel = new Map();
 
     phoneSpeakerActive = false;
     currentlyPhoneSpeakerApplied = new Set();
 
     useWhisper = false;
-
-    //TODO: Migrate to Athena Framework
-    webview = new alt.WebView('http://assets/yaca-ui/assets/index.html');
 
     mhinTimeout = null;
     mhintTick = null;
@@ -160,65 +149,9 @@ export class YaCAClientModule {
     }
 
     registerEvents() {
-        alt.onServer(YACA_EVENTS.CLIENT_INIT, (dataObj) => {
-            if (this.rangeInterval) {
-                alt.clearInterval(this.rangeInterval);
-                this.rangeInterval = null;
-            }
-
-            if (!this.websocket) {
-                this.websocket = new alt.WebSocketClient('ws://127.0.0.1:30125');
-                this.websocket.on('message', msg => {
-                    this.handleResponse(msg);
-                });
-
-                this.websocket.on('error', reason => alt.logError('[YACA-Websocket] Error: ', reason));
-                this.websocket.on('close', (code, reason) => alt.logError('[YACA-Websocket]: client disconnected', code, reason));
-                this.websocket.on('open', () => {
-                    if (this.firstConnect) {
-                        this.initRequest(dataObj);
-                        this.firstConnect = false;
-                    } else {
-                        alt.emitServerRaw(YACA_EVENTS.SERVER_WS_READY, this.firstConnect);
-                    }
-
-                    alt.log('[YACA-Websocket]: connected');
-                });
-
-                this.websocket.perMessageDeflate = true;
-                this.websocket.autoReconnect = true;
-                this.websocket.start();
-
-                // Monitoring if player is in ingame voice channel
-                this.monitorInterval = alt.setInterval(this.monitorConnectstate.bind(this), 1000);
-            }
-
-            if (this.firstConnect) return;
-
-            this.initRequest(dataObj);
-        });
-
+        alt.onServer(YACA_EVENTS.CLIENT_INIT, this.clientInit.bind(this));
         alt.onServer(YACA_EVENTS.CLIENT_DISCONNECT, YaCAClientModule.allPlayers.delete);
-
-        alt.onServer(YACA_EVENTS.CLIENT_ADD_PLAYERS, (dataObjects: PlayerVoicePlugin | PlayerVoicePlugin[]) => {
-            if (!Array.isArray(dataObjects)) dataObjects = [dataObjects];
-
-            for (const dataObj of dataObjects) {
-                if (!dataObj || typeof dataObj.range == "undefined" || typeof dataObj.clientId == "undefined" || typeof dataObj.playerId == "undefined") continue;
-
-                const currentData = this.getPlayerByID(dataObj.playerId);
-
-                YaCAClientModule.allPlayers.set(dataObj.playerId, {
-                    remoteID: dataObj.playerId,                   
-                    clientId: dataObj.clientId,
-                    forceMuted: dataObj.forceMuted,
-                    range: dataObj.range,
-                    isTalking: false,
-                    phoneCallMemberIds: currentData?.phoneCallMemberIds || undefined,
-                    mutedOnPhone: dataObj.mutedOnPhone,                                      
-                })
-            }
-        });
+        alt.onServer(YACA_EVENTS.CLIENT_ADD_PLAYERS, this.clientAddPlayers.bind(this));
 
         /**
          * Handles the "client:yaca:muteTarget" server event.
@@ -244,159 +177,6 @@ export class YaCAClientModule {
                 this.lastuiRange = 4;
             }
         });
-
-        /* =========== RADIO SYSTEM =========== */
-        this.webview.on(YACA_EVENTS.WV_CLIENT_ENABLE_RADIO, (state) => {
-            if (!this.isPluginInitialized()) return;
-
-            if (this.radioEnabled != state) {
-                this.radioEnabled = state;
-                alt.emitServerRaw(YACA_EVENTS.SERVER_ENABLE_RADIO, state);
-
-                if (!state) {
-                    for (let i = 1; i <= Config.YACA_MAX_RADIO_CHANNELS; i++) {
-                        this.disableRadioFromPlayerInChannel(i);
-                    }
-                }
-            }
-
-            if (state && !this.radioInited) {
-                this.radioInited = true;
-                this.initRadioSettings();
-                this.updateRadioInWebview(this.activeRadioChannel);
-            }
-        });
-
-        this.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_RADIO_FREQUENCY, (frequency: string) => {
-            if (!this.isPluginInitialized()) return;
-
-            alt.emitServerRaw(YACA_EVENTS.SERVER_CHANGE_RADIO_FREQUENCY, this.activeRadioChannel, frequency);
-        });
-
-        alt.onServer(YACA_EVENTS.CLIENT_SET_RADIO_FREQUENCY, (channel: number, frequency: string) => {
-            this.setRadioFrequency(channel, frequency);
-        });
-
-        alt.onServer(YACA_EVENTS.CLIENT_RADIO_TALKING_WHISPER, (targets: number[], state: boolean) => {
-            this.radioTalkingStateToPluginWithWhisper(state, targets);
-        });
-
-        alt.onServer(YACA_EVENTS.CLIENT_RADIO_TALKING, (target: number, frequency: string, state?: boolean, infos?: RadioInfos) => {
-            const channel = this.findRadioChannelByFrequency(frequency);
-            if (!channel) return;
-            
-            const player = this.getPlayerByID(target);
-            if (!player) return;
-
-            const info = infos[this.localPlayer.remoteID];
-
-            if (!info?.shortRange || (info?.shortRange && alt.Player.getByRemoteID(target)?.isSpawned)) {
-                YaCAClientModule.setPlayersCommType(player, YacaFilter.RADIO, state, channel, undefined, CommDeviceMode.RECEIVER, CommDeviceMode.SENDER);
-            }
-
-            state ? this.playersInRadioChannel.get(channel)?.add(target) : this.playersInRadioChannel.get(channel)?.delete(target);
-
-            if (info?.shortRange || !state) {
-                if (state) {
-                    this.playersWithShortRange.set(target, frequency)
-                } else {
-                    this.playersWithShortRange.delete(target)
-                }
-            }
-        });
-
-        this.webview.on(YACA_EVENTS.WV_CLIENT_MUTE_RADIO_CHANNEL, () => {
-            if (!this.isPluginInitialized() || !this.radioEnabled) return;
-
-            const channel = this.activeRadioChannel;
-            if (this.radioChannelSettings[channel].frequency == 0) return;
-            alt.emitServerRaw(YACA_EVENTS.SERVER_MUTE_RADIO_CHANNEL, channel)
-        });
-
-        alt.onServer(YACA_EVENTS.CLIENT_RADIO_MUTE_STATE, (channel, state) => {
-            this.radioChannelSettings[channel].muted = state;
-            this.updateRadioInWebview(channel);
-            this.disableRadioFromPlayerInChannel(channel);
-        });
-
-        alt.onServer(YACA_EVENTS.CLIENT_LEAVE_RADIO_CHANNEL, (client_ids, frequency) => {
-            if (!Array.isArray(client_ids)) client_ids = [client_ids];
-
-            const channel = this.findRadioChannelByFrequency(frequency);
-
-            if (client_ids.includes(this.getPlayerByID(this.localPlayer.remoteID)?.clientId)) this.setRadioFrequency(channel, 0);
-
-            this.sendWebsocket({
-                base: {"request_type": "INGAME"},
-                comm_device_left: {
-                    comm_type: YacaFilter.RADIO,
-                    client_ids: client_ids,
-                    channel: channel
-                }
-            });
-        });
-
-        this.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_ACTIVE_RADIO_CHANNEL, (channel) => {
-            if (!this.isPluginInitialized() || !this.radioEnabled) return;
-
-            alt.emitServerRaw(YACA_EVENTS.SERVER_CHANGE_ACTIVE_RADIO_CHANNEL, channel);
-            this.activeRadioChannel = channel;
-            this.updateRadioInWebview(channel);
-        });
-
-        this.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_RADIO_CHANNEL_VOLUME, (higher) => {
-            if (!this.isPluginInitialized() || !this.radioEnabled || this.radioChannelSettings[this.activeRadioChannel].frequency == 0) return;
-
-            const channel = this.activeRadioChannel;
-            const oldVolume = this.radioChannelSettings[channel].volume;
-            this.radioChannelSettings[channel].volume = this.clamp(
-                oldVolume + (higher ? 0.17 : -0.17),
-                0,
-                1
-            )
-
-            // Prevent event emit spams, if nothing changed
-            if (oldVolume == this.radioChannelSettings[channel].volume) return
-
-            if (this.radioChannelSettings[channel].volume == 0 || (oldVolume == 0 && this.radioChannelSettings[channel].volume > 0)) {
-                alt.emitServerRaw(YACA_EVENTS.SERVER_MUTE_RADIO_CHANNEL, channel)
-            }
-
-            // Prevent duplicate update, cuz mute has its own update
-            if (this.radioChannelSettings[channel].volume > 0) this.updateRadioInWebview(channel);
-
-            // Send update to voiceplugin
-            this.setCommDeviceVolume(YacaFilter.RADIO, this.radioChannelSettings[channel].volume, channel);
-        });
-
-        this.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_RADIO_CHANNEL_STEREO, () => {
-            if (!this.isPluginInitialized() || !this.radioEnabled) return;
-
-            const channel = this.activeRadioChannel;
-
-            //TODO: Translation!
-            switch (this.radioChannelSettings[channel].stereo) {
-                case YacaStereoMode.STEREO:
-                    this.radioChannelSettings[channel].stereo = YacaStereoMode.MONO_LEFT;
-                    this.radarNotification(`Kanal ${channel} ist nun auf der linken Seite hörbar.`);
-                    break;
-                case YacaStereoMode.MONO_LEFT:
-                    this.radioChannelSettings[channel].stereo = YacaStereoMode.MONO_RIGHT;
-                    this.radarNotification(`Kanal ${channel} ist nun auf der rechten Seite hörbar.`);
-                    break;
-                case YacaStereoMode.MONO_RIGHT:
-                    this.radioChannelSettings[channel].stereo = YacaStereoMode.STEREO;
-                    this.radarNotification(`Kanal ${channel} ist nun auf beiden Seiten hörbar.`);
-            };
-
-            // Send update to voiceplugin
-            this.setCommDeviceStereomode(YacaFilter.RADIO, this.radioChannelSettings[channel].stereo, channel);
-        });
-
-        //TODO: Implement, will be used if player activates radio speaker so everyone around him can hear it
-        this.webview.on(YACA_EVENTS.WV_CLIENT_CHANGE_RADIO_SPEAKER, () => {
-
-        })
 
         /* =========== INTERCOM SYSTEM =========== */
         /**
@@ -515,7 +295,7 @@ export class YaCAClientModule {
                     this.useMegaphone(true);
                     break;
                 case KEY_BINDS.WALKIETALKIE_TALK: 
-                    this.radioTalkingStart(true);
+                    YacaRadio.radioTalkingStart(true);
                     break;
                 case KEY_BINDS.YACA_RANGE_PLUS:
                     this.changeVoiceRange(1);
@@ -524,7 +304,7 @@ export class YaCAClientModule {
                     this.changeVoiceRange(-1);
                     break;
                 case KEY_BINDS.YACA_OPEN_RADIO:
-                    this.openRadio();
+                    YacaRadio.openRadio();
                     break;
             }
         });
@@ -535,7 +315,7 @@ export class YaCAClientModule {
                     this.useMegaphone(false);
                     break;
                 case KEY_BINDS.WALKIETALKIE_TALK: // Backslash
-                    this.radioTalkingStart(false);
+                    YacaRadio.radioTalkingStart(false);
                     break;
                 
             }
@@ -558,7 +338,7 @@ export class YaCAClientModule {
 
             // Handle shortrange radio on stream-in
             if (this.playersWithShortRange.has(entity.id)) {
-                const channel = this.findRadioChannelByFrequency(this.playersWithShortRange.get(entity.id));
+                const channel = YacaRadio.findRadioChannelByFrequency(this.playersWithShortRange.get(entity.id));
                 if (channel) {
                     YaCAClientModule.setPlayersCommType(this.getPlayerByID(entity.id), YacaFilter.RADIO, true, channel, undefined, CommDeviceMode.RECEIVER, CommDeviceMode.SENDER);
                 }
@@ -583,6 +363,69 @@ export class YaCAClientModule {
                 YaCAClientModule.setPlayersCommType(this.getPlayerByID(entityID), YacaFilter.RADIO, false, undefined, undefined, CommDeviceMode.RECEIVER, CommDeviceMode.SENDER);
             }
         });
+    }
+
+    /**
+     * Handles the talk state of a player.
+     *
+     * @param {iPlayerSettings} settings - The settings of the player.
+     */
+    clientInit(settings: iPlayerSettings) {
+        if (this.rangeInterval) {
+            alt.clearInterval(this.rangeInterval);
+            this.rangeInterval = null;
+        }
+
+        if (!this.websocket) {
+            this.websocket = new alt.WebSocketClient('ws://127.0.0.1:30125');
+            this.websocket.on('message', msg => {
+                this.handleResponse(msg);
+            });
+
+            this.websocket.on('error', reason => alt.logError('[YACA-Websocket] Error: ', reason));
+            this.websocket.on('close', (code, reason) => alt.logError('[YACA-Websocket]: client disconnected', code, reason));
+            this.websocket.on('open', () => {
+                if (this.firstConnect) {
+                    this.initRequest(settings);
+                    this.firstConnect = false;
+                } else {
+                    alt.emitServerRaw(YACA_EVENTS.SERVER_WS_READY, this.firstConnect);
+                }
+
+                alt.log('[YACA-Websocket]: connected');
+            });
+
+            this.websocket.perMessageDeflate = true;
+            this.websocket.autoReconnect = true;
+            this.websocket.start();
+
+            // Monitoring if player is in ingame voice channel
+            this.monitorInterval = alt.setInterval(this.monitorConnectstate.bind(this), 1000);
+        }
+
+        if (this.firstConnect) return;
+
+        this.initRequest(settings);
+    }
+
+    clientAddPlayers(dataObjects: PlayerVoicePlugin | PlayerVoicePlugin[]) {
+        if (!Array.isArray(dataObjects)) dataObjects = [dataObjects];
+
+        for (const dataObj of dataObjects) {
+            if (!dataObj || typeof dataObj.range == "undefined" || typeof dataObj.clientId == "undefined" || typeof dataObj.playerId == "undefined") continue;
+
+            const currentData = this.getPlayerByID(dataObj.playerId);
+
+            YaCAClientModule.allPlayers.set(dataObj.playerId, {
+                remoteID: dataObj.playerId,                   
+                clientId: dataObj.clientId,
+                forceMuted: dataObj.forceMuted,
+                range: dataObj.range,
+                isTalking: false,
+                phoneCallMemberIds: currentData?.phoneCallMemberIds || undefined,
+                mutedOnPhone: dataObj.mutedOnPhone,                                      
+            })
+        }
     }
 
     /* ======================== Helper Functions ======================== */
@@ -623,7 +466,8 @@ export class YaCAClientModule {
             case YACA_META.VOICE_RANGE: {
                 if (typeof value == "undefined") return;
 
-                if (isOwnPlayer && !this.isPlayerMuted) this.webview.emit(YACA_EVENTS.WEBVIEW_VOICE_DISTANCE, value);
+                YacaRadio.handleSyncedMetas(entity, key, value, oldValue);
+               
                 this.setPlayerVariable(entity, PlayerVariables.range, value);
                 break;
             }
@@ -708,7 +552,7 @@ export class YaCAClientModule {
                 this.rangeInterval = alt.setInterval(this.calcPlayers.bind(this), 250);
 
                 // Set radio settings on reconnect only, else on first opening
-                if (this.radioInited) this.initRadioSettings();
+                YacaRadio.initRadioSettings();
                 return;
             }
 
@@ -926,7 +770,7 @@ export class YaCAClientModule {
             natives.drawMarker(1, pos.x, pos.y, pos.z - 0.98, 0, 0, 0, 0, 0, 0, (voiceRange * 2) - 1, (voiceRange * 2) - 1, 1, 0, 255, 0, 50, false, true, 2, true, null, null, false);
         });
 
-        alt.emitServerRaw("server:yaca:changeVoiceRange", voiceRange);
+        alt.emitServerRaw(YACA_EVENTS.SERVER_CHANGE_VOICE_RANGE, voiceRange);
 
         return true;
     };
@@ -1061,7 +905,7 @@ export class YaCAClientModule {
             this.messageDisplayed = true;
         }
 
-        if (this.noPluginActivated >= 120) alt.emitServerRaw("server:yaca:noVoicePlugin")
+        if (this.noPluginActivated >= Config.DISCONNECT_TIMEOUT && Config.DISCONNECT_TIMEOUT > 0) alt.emitServerRaw(YACA_EVENTS.SERVER_NO_VOICE_PLUGIN)
     }
 
     /**
@@ -1073,14 +917,14 @@ export class YaCAClientModule {
         // Update state if player is muted or not
         if (payload.code === "MUTE_STATE") {
             this.isPlayerMuted = !!parseInt(payload.message);
-            this.webview.emit(YACA_EVENTS.WEBVIEW_VOICE_DISTANCE, this.isPlayerMuted ? 0 : Config.voiceRangesEnum[this.uirange]);
+            AthenaClient.webview.emit(YACA_EVENTS.WEBVIEW_VOICE_DISTANCE, this.isPlayerMuted ? 0 : Config.voiceRangesEnum[this.uirange]);
         }
         
         const isTalking = !this.isPlayerMuted && !!parseInt(payload.message);
         if (this.isTalking != isTalking) {
             this.isTalking = isTalking;
 
-            this.webview.emit(YACA_EVENTS.WEBVIEW_IS_TALKING, isTalking);
+            AthenaClient.webview.emit(YACA_EVENTS.WEBVIEW_IS_TALKING, isTalking);
 
             // TODO: Deprecated if alt:V syncs the playFacialAnim native
             alt.emitServerRaw(YACA_EVENTS.SERVER_LIP_SYNC, isTalking)
@@ -1195,163 +1039,6 @@ export class YaCAClientModule {
         });
     }
 
-    /* ======================== RADIO SYSTEM ======================== */
-    openRadio() {
-        if (!this.radioToggle && !alt.isCursorVisible()) {
-            this.radioToggle = true;
-            alt.showCursor(true);
-            alt.toggleGameControls(false);
-            this.webview.emit(YACA_EVENTS.WEBVIEW_OPEN_STATE, true);
-            this.webview.focus();
-        } else if (this.radioToggle) {
-            this.closeRadio();
-        }
-    }
-
-    /**
-     * Cleanup different things, if player closes his radio.
-     */
-    closeRadio() {
-        if (!this.radioToggle) return;
-
-        this.radioToggle = false;
-
-        alt.showCursor(false);
-        alt.toggleGameControls(true);
-        this.webview.emit(YACA_EVENTS.WEBVIEW_OPEN_STATE, false);
-        this.webview.unfocus();
-    }
-
-    /**
-     * Set volume & stereo mode for all radio channels on first start and reconnect.
-     */
-    initRadioSettings() {
-        for (let i = 1; i <= Config.YACA_MAX_RADIO_CHANNELS; i++) {
-            if (!this.radioChannelSettings[i]) this.radioChannelSettings[i] = Object.assign({}, Config.defaultRadioChannelSettings);
-            if (!this.playersInRadioChannel.has(i)) this.playersInRadioChannel.set(i, new Set());
-
-            const volume = this.radioChannelSettings[i].volume;
-            const stereo = this.radioChannelSettings[i].stereo;
-
-            this.setCommDeviceStereomode(YacaFilter.RADIO, stereo, i);
-            this.setCommDeviceVolume(YacaFilter.RADIO, volume, i);
-        }
-    }
-
-    /**
-     * Sends an event to the plugin when a player starts or stops talking on the radio.
-     *
-     * @param {boolean} state - The state of the player talking on the radio.
-     */
-    radioTalkingStateToPlugin(state: boolean) {
-        YaCAClientModule.setPlayersCommType(this.getPlayerByID(this.localPlayer.remoteID), YacaFilter.RADIO, state, this.activeRadioChannel);
-    }
-
-    radioTalkingStateToPluginWithWhisper(state: boolean, targets: number[]) {
-        let comDeviceTargets = [];
-        for (const target of targets) {
-            const player = this.getPlayerByID(target);
-            if (!player) continue;
-
-            comDeviceTargets.push(player);
-        }
-            
-        YaCAClientModule.setPlayersCommType(comDeviceTargets, YacaFilter.RADIO, state, this.activeRadioChannel, undefined, CommDeviceMode.SENDER, CommDeviceMode.RECEIVER);
-    }
-
-    /**
-     * Updates the UI when a player changes the radio channel.
-     *
-     * @param {number} channel - The new radio channel.
-     */
-    updateRadioInWebview(channel) {
-        if (channel != this.activeRadioChannel) return;
-
-        this.webview.emit(YACA_EVENTS.WEBVIEW_SET_CHANNEL_DATA, this.radioChannelSettings[channel]);
-    }
-
-    /**
-     * Finds a radio channel by a given frequency.
-     *
-     * @param {string} frequency - The frequency to search for.
-     * @returns {number | undefined} The channel number if found, undefined otherwise.
-     */
-    findRadioChannelByFrequency(frequency) {
-        let foundChannel;
-        for (const channel in this.radioChannelSettings) {
-            const data = this.radioChannelSettings[channel];
-            if (data.frequency == frequency) {
-                foundChannel = parseInt(channel);
-                break;
-            }
-        }
-
-        return foundChannel;
-    }
-
-    setRadioFrequency(channel, frequency) {
-        this.radioFrequenceSetted = true;
-
-        if (this.radioChannelSettings[channel].frequency != frequency) {
-            this.disableRadioFromPlayerInChannel(channel);
-        }
-
-        this.radioChannelSettings[channel].frequency = frequency;
-    }
-
-    /**
-     * Disable radio effect for all players in the given channel.
-     *
-     * @param {number} channel - The channel number.
-     */
-    disableRadioFromPlayerInChannel(channel) {
-        if (!this.playersInRadioChannel.has(channel)) return;
-
-        const players = this.playersInRadioChannel.get(channel);
-        if (!players?.size) return;
-
-        let targets = [];
-        for (const playerId of players) {
-            const player = this.getPlayerByID(playerId);
-            if (!player) continue;
-
-            targets.push(player);
-            players.delete(player.remoteID);
-        }
-
-        if (targets.length) YaCAClientModule.setPlayersCommType(targets, YacaFilter.RADIO, false, channel, undefined, CommDeviceMode.RECEIVER, CommDeviceMode.SENDER);
-    }
-
-    /**
-     * Starts the radio talking state.
-     *
-     * @param {boolean} state - The state of the radio talking.
-     * @param {boolean} [clearPedTasks=true] - Whether to clear ped tasks. Defaults to true if not provided.
-     */
-    radioTalkingStart(state, clearPedTasks = true) {
-        if (!state) {
-            if (this.radioTalking) {
-                this.radioTalking = false;
-                if (!this.useWhisper) this.radioTalkingStateToPlugin(false);
-                alt.emitServerRaw("server:yaca:radioTalking", false);
-                if (clearPedTasks) natives.stopAnimTask(this.localPlayer, "random@arrests", "generic_radio_chatter", 4);
-            }
-
-            return;
-        }
-
-        if (!this.radioEnabled || !this.radioFrequenceSetted || this.radioTalking || this.localPlayer.isReloading) return;
-
-        this.radioTalking = true;
-        if (!this.useWhisper) this.radioTalkingStateToPlugin(true);
-
-        alt.Utils.requestAnimDict("random@arrests").then(() => {
-            natives.taskPlayAnim(this.localPlayer, "random@arrests", "generic_radio_chatter", 3, -4, -1, 49, 0.0, false, false, false);
-
-            alt.emitServerRaw("server:yaca:radioTalking", true);
-        });
-    };
-
     /* ======================== PHONE SYSTEM ======================== */
 
     /**
@@ -1388,6 +1075,6 @@ export class YaCAClientModule {
         if ((!this.localPlayer.vehicle?.valid && !this.localPlayer.yacaPluginLocal.canUseMegaphone) || state == this.localPlayer.yacaPluginLocal.lastMegaphoneState) return;
 
         this.localPlayer.yacaPluginLocal.lastMegaphoneState = !this.localPlayer.yacaPluginLocal.lastMegaphoneState;
-        alt.emitServerRaw("server:yaca:useMegaphone", state)
+        alt.emitServerRaw(YACA_EVENTS.SERVER_USE_MEGAPHONE, state)
     }
 }

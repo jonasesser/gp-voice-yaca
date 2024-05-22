@@ -1,7 +1,7 @@
 import * as alt from 'alt-server';
 import * as AthenaServer from '@AthenaServer/api/index.js';
 import { Config } from '@AthenaPlugins/gp-voice-yaca/shared/config.js';
-import { FrequenceValueMap, PlayerRadioSettings, PlayerVoicePlugin, PlayerVoiceSettings, RadioInfoValue, RadioInfos } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
+import { FrequenceValueMap, PlayerRadioSettings, PlayerVoicePlugin, PlayerVoiceSettings, RadioInfoValue, RadioInfos, iPlayerSettings } from '@AthenaPlugins/gp-voice-yaca/shared/interfaces.js';
 import { YACA_META } from '@AthenaPlugins/gp-voice-yaca/shared/meta.js';
 import { YACA_EVENTS } from '@AthenaPlugins/gp-voice-yaca/shared/events.js';
 import { ALT_V_EVENTS } from '@AthenaShared/enums/altvEvents.js';
@@ -134,72 +134,56 @@ export class YaCAServerModule {
 
     registerEvents() {
         // alt:V Events
-        alt.on(ALT_V_EVENTS.playerDisconnect, this.handlePlayerDisconnect);
-        alt.on(ALT_V_EVENTS.playerLeftVehicle, this.handlePlayerLeftVehicle);
-        alt.on(ALT_V_EVENTS.entityEnterColshape, this.handleEntityEnterColshape);
-        alt.on(ALT_V_EVENTS.entityLeaveColshape, this.handleEntityLeaveColshape);
+        alt.on(ALT_V_EVENTS.playerConnect, this.connectToVoice.bind(this));
+        alt.on(ALT_V_EVENTS.playerDisconnect, this.handlePlayerDisconnect.bind(this));
+        alt.on(ALT_V_EVENTS.playerLeftVehicle, this.handlePlayerLeftVehicle.bind(this));
+        alt.on(ALT_V_EVENTS.entityEnterColshape, this.handleEntityEnterColshape.bind(this));
+        alt.on(ALT_V_EVENTS.entityLeaveColshape, this.handleEntityLeaveColshape.bind(this));
 
         //Events if called from other serverside ressource
-        alt.on(YACA_EVENTS.SERVER_CONNECT, this.connectToVoice);
-        alt.on(YACA_EVENTS.SERVER_CALL_PLAYER, this.callPlayer);
-        alt.on(YACA_EVENTS.SERVER_CALL_PLAYER_OLD_EFFECT, this.callPlayerOldEffect);
-        alt.on(YACA_EVENTS.SERVER_CHANGE_PLAYER_ALIVE_STATUS, this.changePlayerAliveStatus);
-        alt.on(YACA_EVENTS.SERVER_ENABLE_PHONE_SPEAKER, this.enablePhoneSpeaker);
-        alt.on(YACA_EVENTS.SERVER_MUTE_ON_PHONE, this.muteOnPhone);
+        alt.on(YACA_EVENTS.SERVER_CONNECT, this.connectToVoice.bind(this));
+        alt.on(YACA_EVENTS.SERVER_CALL_PLAYER, this.callPlayer.bind(this));
+        alt.on(YACA_EVENTS.SERVER_CALL_PLAYER_OLD_EFFECT, this.callPlayerOldEffect.bind(this));
+        alt.on(YACA_EVENTS.SERVER_CHANGE_PLAYER_ALIVE_STATUS, this.changePlayerAliveStatus.bind(this));
+        alt.on(YACA_EVENTS.SERVER_ENABLE_PHONE_SPEAKER, this.enablePhoneSpeaker.bind(this));
+        alt.on(YACA_EVENTS.SERVER_MUTE_ON_PHONE, this.muteOnPhone.bind(this));
 
         // YaCA: voice range toggle
-        alt.onClient(YACA_EVENTS.SERVER_CHANGE_VOICE_RANGE, this.changeVoiceRange);
+        alt.onClient(YACA_EVENTS.SERVER_CHANGE_VOICE_RANGE, this.changeVoiceRange.bind(this));
 
         // YACA: Playerlipsync
         alt.onClient(YACA_EVENTS.SERVER_LIP_SYNC, (player, state) => {
             player.setStreamSyncedMeta(YACA_META.LIPSYNC, state);
         });
 
-        // YaCA:successful voice connection and client-id sync
-        alt.onClient(YACA_EVENTS.SERVER_ADD_PLAYER, this.addNewPlayer);
-
-        // YaCA: Change megaphone state by player
-        alt.onClient(YACA_EVENTS.SERVER_USE_MEGAPHONE, this.playerUseMegaphone);
-
-        // YaCA: Triggers if voiceplugin is for x amount of time not connected
-        alt.onClient(YACA_EVENTS.SERVER_NO_VOICE_PLUGIN, this.playerNoVoicePlugin);
-
-        //YaCa: voice restart
-        alt.onClient(YACA_EVENTS.SERVER_WS_READY, this.playerReconnect);
-
-        //YaCA: Enable radio
-        alt.onClient(YACA_EVENTS.SERVER_ENABLE_RADIO, this.enableRadio);
-
-        //YaCA-Radio: Change radio channel frequency
-        alt.onClient(YACA_EVENTS.SERVER_CHANGE_RADIO_FREQUENCY, this.changeRadioFrequency);
-
-        //YaCA-Radio: Mute a radio channel
-        alt.onClient(YACA_EVENTS.SERVER_MUTE_RADIO_CHANNEL, this.radioChannelMute);
-
-        //YaCA-Radio: Talk in radio channel
-        alt.onClient(YACA_EVENTS.SERVER_RADIO_TALKING, this.radioTalkingState);
-
-        //YaCA-Radio: Change active radio channel
-        alt.onClient(YACA_EVENTS.SERVER_CHANGE_ACTIVE_RADIO_CHANNEL, this.radioActiveChannelChange);
-
-        alt.onClient(YACA_EVENTS.SERVER_PHONE_SPEAKER_EMIT, (player, enableForTargets, disableForTargets) => {
-            const enableWhisperReceive = [];
-            const disableWhisperReceive = [];
-
-            player.voiceSettings.inCallWith.forEach(callTarget => {
-                const target = alt.Player.getByID(callTarget);
-                if (!target?.valid) return;
-
-                if (enableForTargets?.length) enableWhisperReceive.push(target);
-                if (disableForTargets?.length) disableWhisperReceive.push(target);
-            });
-
-            if (enableWhisperReceive.length) alt.emitClientRaw(enableWhisperReceive, YACA_EVENTS.CLIENT_PLAYERS_TO_PHONE_SPEAKER_EMIT, enableForTargets, true);
-            if (disableWhisperReceive.length) alt.emitClientRaw(disableWhisperReceive, YACA_EVENTS.CLIENT_PLAYERS_TO_PHONE_SPEAKER_EMIT, disableForTargets, false);
-        });
-
+        alt.onClient(YACA_EVENTS.SERVER_ADD_PLAYER, this.addNewPlayer.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_USE_MEGAPHONE, this.playerUseMegaphone.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_NO_VOICE_PLUGIN, this.playerNoVoicePlugin.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_WS_READY, this.playerReconnect.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_ENABLE_RADIO, this.enableRadio.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_CHANGE_RADIO_FREQUENCY, this.changeRadioFrequency.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_MUTE_RADIO_CHANNEL, this.radioChannelMute.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_RADIO_TALKING, this.radioTalkingState.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_CHANGE_ACTIVE_RADIO_CHANNEL, this.radioActiveChannelChange.bind(this));
+        alt.onClient(YACA_EVENTS.SERVER_PHONE_SPEAKER_EMIT, this.phoneSpeakerEmit.bind(this));
         alt.onClient(YACA_EVENTS.SERVER_MUTE_ON_PHONE, this.muteOnPhone.bind(this));
         alt.onClient(YACA_EVENTS.SERVER_ENABLE_PHONE_SPEAKER, this.enablePhoneSpeaker.bind(this));
+    }
+
+    phoneSpeakerEmit(player: alt.Player, enableForTargets: number[], disableForTargets: number[]) {
+        const enableWhisperReceive = [];
+        const disableWhisperReceive = [];
+
+        player.voiceSettings.inCallWith.forEach(callTarget => {
+            const target = alt.Player.getByID(callTarget);
+            if (!target?.valid) return;
+
+            if (enableForTargets?.length) enableWhisperReceive.push(target);
+            if (disableForTargets?.length) disableWhisperReceive.push(target);
+        });
+
+        if (enableWhisperReceive.length) alt.emitClientRaw(enableWhisperReceive, YACA_EVENTS.CLIENT_PLAYERS_TO_PHONE_SPEAKER_EMIT, enableForTargets, true);
+        if (disableWhisperReceive.length) alt.emitClientRaw(disableWhisperReceive, YACA_EVENTS.CLIENT_PLAYERS_TO_PHONE_SPEAKER_EMIT, disableForTargets, false);
     }
 
     /**
@@ -335,8 +319,7 @@ export class YaCAServerModule {
      * @param {alt.Player} player - The player to check for the voice plugin.
      */
     playerNoVoicePlugin(player: alt.Player) {
-        //TODO: Multilanguage Support!
-        if (player?.valid) player.kick("Dein Voiceplugin war nicht aktiviert!");
+        if (player?.valid) player.kick(AthenaServer.locale.get(player, LOCALES_KEYS.NOT_ACTIVE_KICK_MESSAGE));
     }
 
     /**
@@ -391,7 +374,7 @@ export class YaCAServerModule {
             channelPassword: settings.CHANNEL_PASSWORD,
             ingameName: player.voiceSettings.ingameName,
             useWhisper: settings.USE_WHISPER
-        });
+        } as iPlayerSettings);
     }
 
     /**

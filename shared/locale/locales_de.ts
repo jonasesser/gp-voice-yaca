@@ -13,5 +13,7 @@ export const LOCALES_DE = {
     NOT_CONNECTED: "Du bist nicht mit dem korrekten Teamspeakserver verbunden!",
     MOVE_ERROR: "Fehler beim Bewegen in den Ingame Teamspeak Channel!",
     WAIT_GAME_INIT: "",
-    HEARTBEAT: ""
+    HEARTBEAT: "",
+
+    NOT_ACTIVE_KICK_MESSAGE: "Dein Voiceplugin war nicht aktiviert!",
 };

@@ -51,11 +51,11 @@ export enum YACA_EVENTS {
     SERVER_MUTE_RADIO_CHANNEL = 'server:yaca:muteRadioChannel',
     SERVER_CHANGE_ACTIVE_RADIO_CHANNEL = 'server:yaca:changeActiveRadioChannel',
 
-    //Client to WEBVIEW
+    //Client to WEBVIEW | TODO: Mixed up, seperate into different vues, like radio, phone, etc.
     WEBVIEW_RADIO_READY = 'webview:yaca:radioReady',
     WEBVIEW_RADIO_VIEW_NAME = 'Radio',
-    WEBVIEW_VOICE_DISTANCE = 'webview:hud:voiceDistance',
-    WEBVIEW_IS_TALKING = 'webview:hud:isTalking',
+    WEBVIEW_VOICE_DISTANCE = 'webview:hud:voiceDistance', //TODO: not implemented!
+    WEBVIEW_IS_TALKING = 'webview:hud:isTalking', //TODO: Implemented in Radio!?
     WEBVIEW_OPEN_STATE = 'webview:yaca:openState',
     WEBVIEW_SET_CHANNEL_DATA = 'webview:yaca:setChannelData',
 }

@@ -13,5 +13,7 @@
     NOT_CONNECTED: "You are on the wrong teamspeakserver!",
     MOVE_ERROR: "Error while moving into ingame teamspeak channel!",
     WAIT_GAME_INIT: "",
-    HEARTBEAT: ""
+    HEARTBEAT: "",
+    
+    NOT_ACTIVE_KICK_MESSAGE: "Your voiceplugin was not activated!",
 };

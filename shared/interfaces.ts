@@ -1,3 +1,12 @@
+export interface iPlayerSettings {
+    suid: string;
+    chid: string;
+    deChid: string;
+    channelPassword: string;
+    ingameName: string;
+    useWhisper: boolean;
+}
+
 export interface FrequenceValueMap {
     muted: boolean;
 }
