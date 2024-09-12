@@ -43,7 +43,7 @@ export interface PlayerVoiceSettings {
     maxVoiceRangeInMeter: number,
     forceMuted: boolean,
     ingameName: string,
-    inCallWith: number[],
+    inCallWith: Set<number>,
     mutedOnPhone: boolean
 }
 

@@ -337,7 +337,7 @@ export class YaCAClientModule {
             }
 
             // Handle shortrange radio on stream-in
-            if (this.playersWithShortRange.has(entity.id)) {
+            if (this.playersWithShortRange.has(entity.remoteID)) {
                 const channel = YacaRadio.findRadioChannelByFrequency(this.playersWithShortRange.get(entity.id));
                 if (channel) {
                     YaCAClientModule.setPlayersCommType(this.getPlayerByID(entity.id), YacaFilter.RADIO, true, channel, undefined, CommDeviceMode.RECEIVER, CommDeviceMode.SENDER);
@@ -701,10 +701,11 @@ export class YaCAClientModule {
     
         if (!currentData){
             YaCAClientModule.allPlayers.set(player.remoteID, {} as PlayerVoicePlugin);
-        } 
-    
-        alt.logError(`Yaca CurrentData: ` + JSON.stringify(currentData));
+        }     
+        
         this.getPlayerByID(player.remoteID)[variable] = value;
+
+        alt.logError(`Yaca CurrentData: ` + JSON.stringify(currentData));
     }
 
     /**

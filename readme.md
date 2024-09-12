@@ -6,5 +6,7 @@ This plugin is for my customized Athena Framework core called "gp-core", availab
 
 Further informations on my discord: https://discord.gg/uX7ramKEJW
 
+Original code: https://github.com/jonasesser/altV-yaca-js
+
 To test yaca you need at least a test license. You can buy a real license here: https://yaca.systems/licenses
 If you want join my partner/affiliate program you need to buy a commercial license! See Yaca TOS for more informations: https://yaca.systems/tos

@@ -35,16 +35,6 @@ export class YaCAServerModule {
         }
         alt.log('~g~ --> YaCA: Server loaded');
         this.registerEvents();
-
-        // Example colshape for extendet voicerange
-        const pos = new alt.Vector3(0, 0, 70);
-        const colshape = new alt.ColshapeCylinder(pos.x, pos.y, pos.z, 10, 5);
-        colshape.playersOnly = true;
-        colshape.dimension = 0;
-        colshape.voiceRangeInfos = {
-            maxRange: 8 // Value from clientside voiceRangesEnum
-        }
-        YaCAServerModule.voiceRangesColShapes.set(1337, colshape)
     }
 
     /**
@@ -99,7 +89,7 @@ export class YaCAServerModule {
             forceMuted: false,
             ingameName: name,
             mutedOnPhone: false,
-            inCallWith: []
+            inCallWith: new Set<number>(),
         };
 
         player.radioSettings = {
@@ -118,8 +108,6 @@ export class YaCAServerModule {
         
         alt.on(ALT_V_EVENTS.playerDisconnect, this.handlePlayerDisconnect.bind(this));
         alt.on(ALT_V_EVENTS.playerLeftVehicle, this.handlePlayerLeftVehicle.bind(this));
-        alt.on(ALT_V_EVENTS.entityEnterColshape, this.handleEntityEnterColshape.bind(this));
-        alt.on(ALT_V_EVENTS.entityLeaveColshape, this.handleEntityLeaveColshape.bind(this));
 
         //Events if called from other serverside ressource
         alt.on(YACA_EVENTS.SERVER_CONNECT, this.connectToVoice.bind(this));
@@ -202,54 +190,6 @@ export class YaCAServerModule {
     handlePlayerLeftVehicle(player: alt.Player, vehicle: alt.Vehicle, seat: number) {
         YaCAServerModule.changeMegaphoneState(player, false, true);
     }
-
-    /**
-     * Handle various cases if player enters colshapes.
-     *
-     * @param {alt.Colshape} colshape - The colshape that the entity entered.
-     * @param {alt.Entity} entity - The entity that entered the colshape.
-     */
-    handleEntityEnterColshape(colshape: alt.Colshape, entity: alt.Entity) {
-        if (!colshape.voiceRangeInfos || !(entity instanceof alt.Player) || !entity?.valid) return;
-
-        const voiceRangeInfos = colshape.voiceRangeInfos;
-
-        entity.emitRaw(YACA_EVENTS.CLIENT_SET_MAX_VOICE_RANGE, voiceRangeInfos.maxRange);
-
-        switch (voiceRangeInfos.maxRange)
-        {
-            case 5:
-                entity.voiceSettings.maxVoiceRangeInMeter = 20;
-                break;
-            case 6:
-                entity.voiceSettings.maxVoiceRangeInMeter = 25;
-                break;
-            case 7:
-                entity.voiceSettings.maxVoiceRangeInMeter = 30;
-                break;
-            case 8:
-                entity.voiceSettings.maxVoiceRangeInMeter = 40;
-                break;
-        }
-    };
-
-    /**
-     * Handle various cases if player leaves colshapes.
-     *
-     * @param {alt.Colshape} colshape - The colshape that the entity left.
-     * @param {alt.Entity} entity - The entity that left the colshape.
-     */
-    handleEntityLeaveColshape(colshape: alt.Colshape, entity: alt.Entity) {
-        if (!colshape.voiceRangeInfos || !(entity instanceof alt.Player) || !entity?.valid) return;
-
-        entity.voiceSettings.maxVoiceRangeInMeter = 15;
-
-        //We have to reset it here if player leaves the colshape
-        if (entity.voiceSettings.voiceRange > 15) {
-            entity.emitRaw(YACA_EVENTS.CLIENT_SET_MAX_VOICE_RANGE, 15);
-            this.changeVoiceRange(entity, 15);
-        }
-    };
 
     /**
      * Syncs player alive status and mute him if he is dead or whatever.
@@ -625,18 +565,17 @@ export class YaCAServerModule {
         alt.emitClientRaw(target, YACA_EVENTS.CLIENT_PHONE, player.id, state);
         alt.emitClientRaw(player, YACA_EVENTS.CLIENT_PHONE, target.id, state);
 
-        if (!state) {
+        if (state) {
+            player.voiceSettings.inCallWith.add(target.id);
+            target.voiceSettings.inCallWith.add(player.id);
+            if (player.hasStreamSyncedMeta(YACA_META.PHONE_SPEAKER)) this.enablePhoneSpeaker(player, true);
+        } else {
+            if (player.hasStreamSyncedMeta(YACA_META.PHONE_SPEAKER)) this.enablePhoneSpeaker(player, false);
+            player.voiceSettings.inCallWith.delete(target.id);
+            target.voiceSettings.inCallWith.delete(player.id);
             this.muteOnPhone(player, false, true);
             this.muteOnPhone(target, false, true);
-
-            player.voiceSettings.inCallWith.push(target.id);
-            target.voiceSettings.inCallWith.push(player.id);
-        } else {
-            if (player.hasStreamSyncedMeta(YACA_META.PHONE_SPEAKER)) this.enablePhoneSpeaker(player, true, [player.id, target.id]);
-
-            player.voiceSettings.inCallWith = player.voiceSettings.inCallWith.filter(id => id !== target.id);
-            target.voiceSettings.inCallWith = target.voiceSettings.inCallWith.filter(id => id !== player.id);
-        }
+        } 
     }
 
     /**
@@ -652,18 +591,17 @@ export class YaCAServerModule {
         alt.emitClientRaw(target, YACA_EVENTS.CLIENT_PHONE_OLD, player.id, state);
         alt.emitClientRaw(player, YACA_EVENTS.CLIENT_PHONE_OLD, target.id, state);
 
-        if (!state) {
+        if (state) {            
+            player.voiceSettings.inCallWith.add(target.id);
+            target.voiceSettings.inCallWith.add(player.id);
+            if (player.hasStreamSyncedMeta(YACA_META.PHONE_SPEAKER)) this.enablePhoneSpeaker(player, true);
+        } else {            
+            if (player.hasStreamSyncedMeta(YACA_META.PHONE_SPEAKER)) this.enablePhoneSpeaker(player, false);
+            player.voiceSettings.inCallWith.delete(target.id);
+            target.voiceSettings.inCallWith.delete(player.id);
             this.muteOnPhone(player, false, true);
             this.muteOnPhone(target, false, true);
-
-            player.voiceSettings.inCallWith.push(target.id);
-            target.voiceSettings.inCallWith.push(player.id);
-        } else {
-            if (player.hasStreamSyncedMeta(YACA_META.PHONE_SPEAKER)) this.enablePhoneSpeaker(player, true, [player.id, target.id]);
-
-            player.voiceSettings.inCallWith = player.voiceSettings.inCallWith.filter(id => id !== target.id);
-            target.voiceSettings.inCallWith = target.voiceSettings.inCallWith.filter(id => id !== player.id);
-        }
+        } 
     }
 
     /**
@@ -687,11 +625,11 @@ export class YaCAServerModule {
      * @param {boolean} state - The state of the phone speaker.
      * @param {number[]} phoneCallMemberIds - The IDs of the members in the phone call.
      */
-    enablePhoneSpeaker(player: alt.Player, state: boolean, phoneCallMemberIds: number[]) {
+    enablePhoneSpeaker(player: alt.Player, state: boolean) {
         if (!player?.valid) return;
 
         if (state) {
-            player.setStreamSyncedMeta(YACA_META.PHONE_SPEAKER, phoneCallMemberIds);
+            player.setStreamSyncedMeta(YACA_META.PHONE_SPEAKER, player.voiceSettings.inCallWith);
         } else {
             player.deleteStreamSyncedMeta(YACA_META.PHONE_SPEAKER);
         }
